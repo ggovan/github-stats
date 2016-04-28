@@ -46,9 +46,17 @@ case class Contributor(login: String, id: Double, avatar_url: String, gravatar_i
   site_admin: Boolean
   )
 case class Parents(sha: String, url: String, html_url: String)
-case class Stats(total: Int, additions: Int, deletions: Int)
+case class Stats(total: Option[Int], additions: Option[Int], deletions: Option[Int])
 case class Files(sha: String, filename: String, status: String, additions: Int, deletions: Int, changes: Int,
   blob_url: String, raw_url: String, contents_url: String, patch: Option[String])
     
 case class CommitResponse(sha: String, commit: Commit, url: String, html_url: String, comments_url: String, author: JObject/*Contributor*/,
   committer: JObject/*Contributor*/, parents: List[Parents], stats: Stats, files: List[Files])
+  
+import spray.json._
+  
+object GithubStatsProtocol extends DefaultJsonProtocol {
+  implicit val filesCountFormat = jsonFormat2(FilesCount)
+}
+
+case class FilesCount(extension: String, count: Long)
