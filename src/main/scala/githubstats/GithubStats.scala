@@ -44,7 +44,7 @@ object GithubStats {
 
     implicit val timeout = Timeout(200.seconds)
     // start a new HTTP server on port 8080 with our service actor as the handler
-    IO(Http) ? Http.Bind(service, interface = "localhost", port = 9000)
+    IO(Http) ? Http.Bind(service, interface = "0.0.0.0", port = 9021)
 
   }
 }
@@ -75,10 +75,10 @@ class GithubStats(sc: SparkContext, pathToCommits: String, pathToEvents: String)
   // These files are not unique. The same file may be touched multiple times in different commits.
   var files = commits.flatMap { c => c.files.map(_.filename) }.cache()
 
-  def fileCounts(): List[(String,Long)] = files
+  def fileCounts(limit: Int): List[(String,Long)] = files
     .map(fn => if (fn.contains('.')) fn.substring(fn.lastIndexOf('.')) else "No suffix")
     .countByValue().toList
-    .sortBy(-_._2).take(50)
+    .sortBy(-_._2).take(limit)
     //.mkString("\n")
 
   def newFiles(): List[String] = {

@@ -17,11 +17,23 @@ class StatsServiceActor extends akka.actor.Actor with StatsService {
 
 trait StatsService extends HttpService {
 
+  val AccessControlAllowAll = HttpHeaders.RawHeader(
+    "Access-Control-Allow-Origin", "*"
+  )
+  val AccessControlAllowHeadersAll = HttpHeaders.RawHeader(
+    "Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept"
+  )
+  val ContentTypeHeader = HttpHeaders.RawHeader(
+     "Content-Type", "application/json"
+  )
+  
   val filesRoute =
     path("files") {
       get {
-        respondWithMediaType(`application/json`) {
-          complete { GithubStats.gitHubStats.fileCounts().map{(FilesCount.apply _).tupled} }
+        parameters("limit" ? 50) { (limit) =>
+          respondWithHeaders(AccessControlAllowAll, AccessControlAllowHeadersAll, ContentTypeHeader) {
+            complete { GithubStats.gitHubStats.fileCounts(limit).map{(FilesCount.apply _).tupled} }
+          }
         }
       }
     }
