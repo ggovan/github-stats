@@ -21,9 +21,7 @@ import spray.can.Http
 
 object GithubStats {
 
-  var gitHubStats: GithubStats = _
-
-  def main(args: Array[String]): Unit = {
+    def main(args: Array[String]): Unit = {
     val pathToEvents = args(0);
     val pathToCommits = args(1);
 
@@ -32,39 +30,40 @@ object GithubStats {
 
     val sc = new SparkContext()
 
-    val ghs = new GithubStats(sc, pathToCommits, pathToEvents)
-
-    gitHubStats = ghs
+    val ghs = GithubStats(sc, pathToCommits)
 
     implicit val system = ActorSystem("on-spray-can")
 
     // create and start our service actor
-    val service = system.actorOf(Props[StatsServiceActor], "demo-service")
+    val service = system.actorOf(Props(new StatsServiceActor(ghs)), "demo-service")
 
     implicit val timeout = Timeout(200.seconds)
     // start a new HTTP server on port 8080 with our service actor as the handler
     IO(Http) ? Http.Bind(service, interface = "0.0.0.0", port = 9021)
 
   }
+  
+  def apply(sc: SparkContext, pathToCommits: String): GithubStats = {
+    val commitFilesWithPaths = sc.wholeTextFiles(pathToCommits)
+
+    val commitFiles = commitFilesWithPaths
+      .map(_._1).collect().toList
+
+    val commits = commitFilesWithPaths
+      .flatMap {
+        case (filename, contents) =>
+          implicit val formats = DefaultFormats + new PayloadSerializer
+          json.parse(contents)
+            .extract[List[CommitResponse]]
+      }
+
+    val files = commits.flatMap { c => c.files.map(_.filename) }.cache()
+    
+    GithubStats(sc, pathToCommits, commitFiles, commits, files)
+  }
 }
 
-class GithubStats(sc: SparkContext, pathToCommits: String, pathToEvents: String) {
-
-  private var commitFilesWithPaths = sc.wholeTextFiles(pathToCommits)
-  
-  var commitFiles = commitFilesWithPaths
-    .map(_._1).collect().toList
-
-  var commits = commitFilesWithPaths
-    .flatMap {
-      case (filename, contents) =>
-        implicit val formats = DefaultFormats + new PayloadSerializer
-        json.parse(contents)
-          .extract[List[CommitResponse]]
-    }.cache()
-
-  // These files are not unique. The same file may be touched multiple times in different commits.
-  var files = commits.flatMap { c => c.files.map(_.filename) }.cache()
+case class GithubStats(sc: SparkContext, pathToCommits: String, commitFiles: List[String], commits: RDD[CommitResponse], files: RDD[String]) {
 
   def fileCounts(limit: Int): List[(String,Long)] = files
     .map(fn => if (fn.contains('.')) fn.substring(fn.lastIndexOf('.')) else "None")
@@ -101,13 +100,12 @@ class GithubStats(sc: SparkContext, pathToCommits: String, pathToEvents: String)
     
     @tailrec
     def riToList(ri: RemoteIterator[LocatedFileStatus], acc: List[LocatedFileStatus]): List[LocatedFileStatus] = 
-      if(ri.hasNext) riToList(ri, ri.next :: acc) else acc
+      if(ri.hasNext)
+        riToList(ri, ri.next :: acc)
+      else acc
     
-    val all = riToList(allRI, Nil).map(_.getPath.toString)
-    
-    commitFiles = all
-    println(all)
-    all.toSet.--(processed).toList
+    val allFiles = riToList(allRI, Nil).map(_.getPath.toString)
+    allFiles.toSet.--(processed).toList
   }
     
   def makeCommits(files: List[String]): RDD[CommitResponse] = {
@@ -120,21 +118,15 @@ class GithubStats(sc: SparkContext, pathToCommits: String, pathToEvents: String)
           println(filename)
           json.parse(contents)
             .extract[List[CommitResponse]]
-      }.cache()
+      }
   }
 
-  def makeFiles(commits: RDD[CommitResponse]): RDD[String] =
-    commits.flatMap { c => c.files.map(_.filename) }.cache()
-    
-  def update():Boolean = {
+  def update(): GithubStats = {
     val newFiles = this.newFiles()
     val newCommits = makeCommits(newFiles)
-    val newFileNames = makeFiles(newCommits)
+    val newFileNames = newCommits.flatMap(c => c.files.map(_.filename))
     
-    commits = commits.union(newCommits).cache
-    files = files.union(newFileNames).cache
-    
-    true
+    this.copy(commitFiles = commitFiles++newFiles)
   }
 
 }

@@ -8,14 +8,20 @@ import MediaTypes._
 
 import GithubStatsProtocol._
 
-class StatsServiceActor extends akka.actor.Actor with StatsService {
+class StatsServiceActor(var githubStats: GithubStats) extends akka.actor.Actor with StatsService {
 
   def actorRefFactory = context
 
   def receive = runRoute(filesRoute ~ updateRoute ~ commitsRoute)
+  
+  override def currentState() = githubStats
+  override def currentState(state: GithubStats) { this.githubStats = state }
 }
 
 trait StatsService extends HttpService {
+  
+  def currentState():GithubStats
+  def currentState(state:GithubStats): Unit
 
   val AccessControlAllowAll = HttpHeaders.RawHeader(
     "Access-Control-Allow-Origin", "*"
@@ -31,8 +37,15 @@ trait StatsService extends HttpService {
     path("files") {
       get {
         parameters("limit" ? 50) { (limit) =>
-          respondWithHeaders(AccessControlAllowAll, AccessControlAllowHeadersAll, ContentTypeHeader) {
-            complete { GithubStats.gitHubStats.fileCounts(limit).map{(FilesCount.apply _).tupled} }
+          if(limit <= 0){
+            respondWithStatus(StatusCodes.BadRequest) {
+              complete("Limit must be positive")
+            }
+          }
+          else {
+            respondWithHeaders(AccessControlAllowAll, AccessControlAllowHeadersAll, ContentTypeHeader) {
+              complete { currentState.fileCounts(limit).map{(FilesCount.apply _).tupled} }
+            }
           }
         }
       }
@@ -42,7 +55,7 @@ trait StatsService extends HttpService {
     path("commits") {
       get {
           respondWithHeaders(AccessControlAllowAll, AccessControlAllowHeadersAll, ContentTypeHeader) {
-            complete { GithubStats.gitHubStats.commitFileCounts().map{(CommitDetails.apply _).tupled} }
+            complete { currentState.commitFileCounts().map{(CommitDetails.apply _).tupled} }
           }
       }
   }
@@ -51,7 +64,10 @@ trait StatsService extends HttpService {
     path("update") {
       get {
         respondWithMediaType(`text/html`) {
-          complete { GithubStats.gitHubStats.update().toString() }
+          complete { 
+            currentState(currentState.update())
+            true.toString()
+          }
         }
       }
     }
