@@ -26,3 +26,13 @@ libraryDependencies ++= {
 }
 
 Revolver.settings
+
+// Testing 
+
+libraryDependencies += "com.holdenkarau" %% "spark-testing-base" % "1.6.1_0.3.3" % Test
+
+libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.12.5" % Test
+
+javaOptions ++= Seq("-Xms512M", "-Xmx2048M", "-XX:MaxPermSize=2048M", "-XX:+CMSClassUnloadingEnabled")
+
+parallelExecution in Test := false
