@@ -67,10 +67,33 @@ class GithubStats(sc: SparkContext, pathToCommits: String, pathToEvents: String)
   var files = commits.flatMap { c => c.files.map(_.filename) }.cache()
 
   def fileCounts(limit: Int): List[(String,Long)] = files
-    .map(fn => if (fn.contains('.')) fn.substring(fn.lastIndexOf('.')) else "No suffix")
+    .map(fn => if (fn.contains('.')) fn.substring(fn.lastIndexOf('.')) else "None")
     .countByValue().toList
     .sortBy(-_._2).take(limit)
-
+    
+  def commitFileCounts(): Array[(String,Int)] = commits
+    .map(c => c.files)
+    .filter(files => !files.isEmpty)
+    .map(files => {
+        val extensionsMap = files.groupBy(fn => if (fn.filename.contains('.')) fn.filename.substring(fn.filename.lastIndexOf('.')) else "None")
+          .mapValues(l => l.length)
+          
+        val mostFrequent = extensionsMap.keysIterator.reduceLeft((x,y) => if (extensionsMap(x) > extensionsMap(y)) x else y)
+        val totalSize = extensionsMap.valuesIterator.foldLeft(0)(_ + _)
+        (mostFrequent, totalSize)
+     })
+    .collect();
+    
+  def getMostFrequent(fileNames: List[Files]) : (String,Long) = {
+    val extensionsMap = fileNames.groupBy(fn => if (fn.filename.contains('.')) fn.filename.substring(fn.filename.lastIndexOf('.')) else "None")
+    .mapValues(l => l.length)
+    
+    val mostFrequent = extensionsMap.keysIterator.reduceLeft((x,y) => if (extensionsMap(x) > extensionsMap(y)) x else y)
+    val totalSize = extensionsMap.valuesIterator.foldLeft(0)(_ + _)
+    (mostFrequent, totalSize)
+  }
+    
+    
   def newFiles(): List[String] = {
     val processed = commitFiles
     

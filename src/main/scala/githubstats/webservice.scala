@@ -12,7 +12,7 @@ class StatsServiceActor extends akka.actor.Actor with StatsService {
 
   def actorRefFactory = context
 
-  def receive = runRoute(filesRoute ~ updateRoute)
+  def receive = runRoute(filesRoute ~ updateRoute ~ commitsRoute)
 }
 
 trait StatsService extends HttpService {
@@ -37,6 +37,15 @@ trait StatsService extends HttpService {
         }
       }
     }
+  
+  val commitsRoute = 
+    path("commits") {
+      get {
+          respondWithHeaders(AccessControlAllowAll, AccessControlAllowHeadersAll, ContentTypeHeader) {
+            complete { GithubStats.gitHubStats.commitFileCounts().map{(CommitDetails.apply _).tupled} }
+          }
+      }
+  }
   
     val updateRoute =
     path("update") {

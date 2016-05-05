@@ -57,6 +57,8 @@ import spray.json._
   
 object GithubStatsProtocol extends DefaultJsonProtocol {
   implicit val filesCountFormat = jsonFormat2(FilesCount)
+  implicit val commitDetailsFormat = jsonFormat2(CommitDetails)
 }
 
 case class FilesCount(extension: String, count: Long)
+case class CommitDetails(mostCommonExtension: String, totalCount: Int)
