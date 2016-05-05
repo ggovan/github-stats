@@ -1,19 +1,23 @@
 package githubstats
 
+import scala.annotation.tailrec
+import scala.concurrent.duration.DurationInt
+
+import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.fs.LocatedFileStatus
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.RemoteIterator
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 
-import net.liftweb.json
-import net.liftweb.json.DefaultFormats
-
-import akka.actor.{ ActorSystem, Props }
+import akka.actor.ActorSystem
+import akka.actor.Props
 import akka.io.IO
-import spray.can.Http
 import akka.pattern.ask
 import akka.util.Timeout
-import scala.concurrent.duration._
-
-import org.apache.spark._
+import net.liftweb.json
+import net.liftweb.json.DefaultFormats
+import spray.can.Http
 
 object GithubStats {
 
@@ -29,11 +33,6 @@ object GithubStats {
     val sc = new SparkContext()
 
     val ghs = new GithubStats(sc, pathToCommits, pathToEvents)
-
-    //val filesString = ghs.fileCounts()
-
-    println(s"There are ${ghs.events.count()} events with ${ghs.commits.count()} commits that modify ${ghs.files.count()} files.");
-    //println(filesString)
 
     gitHubStats = ghs
 
@@ -51,25 +50,17 @@ object GithubStats {
 
 class GithubStats(sc: SparkContext, pathToCommits: String, pathToEvents: String) {
 
-  var commitFiles =  new java.io.File(pathToCommits).listFiles
-      .map(_.getCanonicalPath)
-      .filter(_.endsWith(".json"))
-      .toSet
+  private var commitFilesWithPaths = sc.wholeTextFiles(pathToCommits)
+  
+  var commitFiles = commitFilesWithPaths
+    .map(_._1).collect().toList
 
-  var commits = sc.wholeTextFiles(pathToCommits)
+  var commits = commitFilesWithPaths
     .flatMap {
       case (filename, contents) =>
         implicit val formats = DefaultFormats + new PayloadSerializer
         json.parse(contents)
           .extract[List[CommitResponse]]
-    }.cache()
-
-  var events = sc.wholeTextFiles(pathToEvents)
-    .flatMap {
-      case (filename, contents) =>
-        implicit val formats = DefaultFormats + new PayloadSerializer
-        json.parse(contents)
-          .extract[List[GitHubEvent[PushEventPayload]]]
     }.cache()
 
   // These files are not unique. The same file may be touched multiple times in different commits.
@@ -79,7 +70,6 @@ class GithubStats(sc: SparkContext, pathToCommits: String, pathToEvents: String)
     .map(fn => if (fn.contains('.')) fn.substring(fn.lastIndexOf('.')) else "None")
     .countByValue().toList
     .sortBy(-_._2).take(limit)
-    //.mkString("\n")
     
   def commitFileCounts(): Array[(String,Int)] = commits
     .map(c => c.files)
@@ -106,17 +96,24 @@ class GithubStats(sc: SparkContext, pathToCommits: String, pathToEvents: String)
     
   def newFiles(): List[String] = {
     val processed = commitFiles
-    val all = new java.io.File(pathToCommits).listFiles
-      .map(_.getCanonicalPath)
-      .filter(_.endsWith(".json"))
-      .toSet
+    
+    val allRI = FileSystem.get(sc.hadoopConfiguration).listFiles(new Path(pathToCommits), true)
+    
+    @tailrec
+    def riToList(ri: RemoteIterator[LocatedFileStatus], acc: List[LocatedFileStatus]): List[LocatedFileStatus] = 
+      if(ri.hasNext) riToList(ri, ri.next :: acc) else acc
+    
+    val all = riToList(allRI, Nil).map(_.getPath.toString)
+    
     commitFiles = all
-    (all -- processed).toList
+    println(all)
+    all.toSet.--(processed).toList
   }
     
   def makeCommits(files: List[String]): RDD[CommitResponse] = {
+    println(files)
     files.map(sc.wholeTextFiles(_))
-      .foldLeft[RDD[(String, String)]](sc.emptyRDD)(_ union _)
+      .fold(sc.emptyRDD)(_ union _)
       .flatMap {
         case (filename, contents) =>
           implicit val formats = DefaultFormats + new PayloadSerializer
