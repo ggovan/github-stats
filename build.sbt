@@ -12,7 +12,7 @@ libraryDependencies += "org.apache.spark" %% "spark-streaming" % "1.5.1"
 
 libraryDependencies += "net.liftweb" %% "lift-json" % "2.6.3"
 libraryDependencies += "redis.clients" % "jedis" % "2.8.0"
-
+libraryDependencies += "com.github.etaty" %% "rediscala" % "1.6.0"
 
 libraryDependencies ++= {
   val akkaV = "2.3.9"

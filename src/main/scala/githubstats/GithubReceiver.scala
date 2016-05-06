@@ -33,7 +33,7 @@ class GitHubReceiver() extends Receiver[BasicEvent](StorageLevel.MEMORY_AND_DISK
     while (!isStopped ) {
       Thread sleep 2000
       
-      val response = Http("https://api.github.com/events?access_token=" + token).asString
+      val response = Http("https://api.github.com/events?access_token=" + token + "&per_page=100").asString
       
       val rateRemaining = response.headers("X-RateLimit-Remaining")
       if (rateRemaining == 0) {
