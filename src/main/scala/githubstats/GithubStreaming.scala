@@ -6,6 +6,11 @@ import org.apache.spark._
 import org.apache.spark.streaming._
 import org.apache.spark.streaming.StreamingContext._
 import com.redislabs.provider.redis._
+import net.liftweb.json
+import net.liftweb.json.DefaultFormats
+import net.liftweb.json.JsonDSL._
+import net.liftweb.json.JObject
+import java.util.Calendar
 
 object GithubStreaming {
   
@@ -23,8 +28,18 @@ object GithubStreaming {
       
       val redisDB = (sys.env("REDIS_HOST"), sys.env("REDIS_PORT").toInt)
       eventTypes.foreachRDD { rdd => {
-          sc.toRedisZSET(rdd, "event:types", redisDB)
-        }
+        
+        val emptyObject: JObject = JObject(List())
+        val eventCounts = rdd.aggregate(emptyObject) (
+          (acc, value) => ( acc ~ value),
+          (acc1, acc2) => ( acc1 ~ acc2 )
+        )
+       
+        val now = Calendar.getInstance()
+        val eventsJson = json.compact(json.render(eventCounts))
+        val outputRdd = sc.parallelize(List((now.getTimeInMillis().toString(), eventsJson)))
+        
+        sc.toRedisHASH(outputRdd, "event:counts", redisDB)}
       }
       
       ssc.start()
