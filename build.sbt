@@ -8,7 +8,7 @@ scalaVersion := "2.10.6"
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
 libraryDependencies += "org.apache.spark" %% "spark-core" % "1.5.1" % "provided"
-libraryDependencies += "org.apache.spark" %% "spark-streaming" % "1.5.1"
+libraryDependencies += "org.apache.spark" %% "spark-streaming" % "1.5.1" % "provided"
 
 libraryDependencies += "net.liftweb" %% "lift-json" % "2.6.3"
 libraryDependencies += "redis.clients" % "jedis" % "2.8.0"
