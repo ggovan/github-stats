@@ -5,6 +5,8 @@ import net.liftweb.json.JsonAST.JField
 import net.liftweb.json.JsonAST.JObject
 
 
+case class BasicEvent(id: String, `type`: String, actor: Actor, repo: Repo)
+
 case class GitHubEvent[+P <: Payload](id: String, `type`: String, actor: Actor, repo: Repo, payload: P, public: Boolean, created_at: String)
 
 /**
