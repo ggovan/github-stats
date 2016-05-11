@@ -1,12 +1,33 @@
 package githubstats
 
+import spray.can.Http
 import spray.routing._
 import spray.http._
 import spray.json._
 import spray.httpx.SprayJsonSupport._
 import MediaTypes._
 
+import akka.actor.ActorSystem
+import akka.actor.Props
+import akka.io.IO
+import akka.pattern.ask
+import akka.util.Timeout
+import scala.concurrent.duration.DurationInt
+
 import GithubStatsProtocol._
+
+object StatsService {
+  def start(githubStats: GithubStats){
+    implicit val system = ActorSystem("on-spray-can")
+
+    // create and start our service actor
+    val service = system.actorOf(Props(new StatsServiceActor(githubStats)), "demo-service")
+
+    implicit val timeout = Timeout(200.seconds)
+    // start a new HTTP server on port 8080 with our service actor as the handler
+    IO(Http) ? Http.Bind(service, interface = "0.0.0.0", port = 9021)
+  }
+}
 
 class StatsServiceActor(var githubStats: GithubStats) extends akka.actor.Actor with StatsService {
 

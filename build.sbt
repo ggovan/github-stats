@@ -9,6 +9,10 @@ scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
 libraryDependencies += "org.apache.spark" %% "spark-core" % "1.5.1" % "provided"
 
+libraryDependencies += "org.apache.spark" %% "spark-streaming" % "1.5.1" % "provided"
+
+libraryDependencies +=  "org.scalaj" %% "scalaj-http" % "2.3.0"
+
 libraryDependencies += "net.liftweb" %% "lift-json" % "2.6.3"
 
 libraryDependencies ++= {
@@ -24,6 +28,8 @@ libraryDependencies ++= {
     "org.specs2"          %%  "specs2-core"   % "2.3.7" % "test"
   )
 }
+
+libraryDependencies += "org.java-websocket" % "Java-WebSocket" % "1.3.0"
 
 Revolver.settings
 
