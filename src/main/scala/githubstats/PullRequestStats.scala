@@ -24,7 +24,7 @@ object PullRequestStats {
 
     val token = sys.env("GITHUB_TOKEN")
 
-    val eventStream = ssc.receiverStream(new GitHubEventReceiver(token))
+    val eventStream = ssc.receiverStream(new GitHubReceiver[GitHubEvent[Payload]])
     val wss = new WebSocketServer(5001)
 
     eventStream.flatMap { event =>
@@ -51,41 +51,6 @@ object PullRequestStats {
 
     ssc.start()
     ssc.awaitTermination()
-  }
-
-}
-
-/**
- * Receives events from GitHub.
- * Polls for events every two seconds.
- */
-class GitHubEventReceiver(token: String) extends Receiver[GitHubEvent[Payload]](StorageLevel.MEMORY_AND_DISK_2) {
-
-  import DefaultFormats._
-
-  def onStart() {
-    new Thread("GitHub Event Poller") {
-      override def run() { poll() }
-    }.start()
-  }
-
-  def onStop() = ???
-
-  /**
-   * Recursively poll the GitHub events API, parse the response and store the result.
-   */
-  @annotation.tailrec
-  final def poll() {
-    val response: HttpResponse[String] = Http(s"https://api.github.com/events?access_token=$token&per_page=2000").asString
-
-    implicit val formats = DefaultFormats + new GitHubEventSerializer
-    val events = json.parse(response.body)
-      .extract[List[GitHubEvent[Payload]]]
-
-    store(events.toIterator)
-
-    Thread.sleep(2000)
-    poll()
   }
 
 }

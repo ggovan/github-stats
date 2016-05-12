@@ -7,6 +7,8 @@ scalaVersion := "2.10.6"
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
+libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value
+
 libraryDependencies += "org.apache.spark" %% "spark-core" % "1.5.1" % "provided"
 libraryDependencies += "org.apache.spark" %% "spark-streaming" % "1.5.1" % "provided"
 
