@@ -41,7 +41,7 @@ object PullRequestStats {
         event.payload.pull_request.deletions,
         event.payload.pull_request.changed_files))
       .map { pr =>
-        implicit val formats = DefaultFormats + new PayloadSerializer
+        implicit val formats = DefaultFormats + new GitHubEventSerializer
         json.Serialization.write(pr)
       }
       .foreachRDD(rdd =>
@@ -78,7 +78,7 @@ class GitHubEventReceiver(token: String) extends Receiver[GitHubEvent[Payload]](
   final def poll() {
     val response: HttpResponse[String] = Http(s"https://api.github.com/events?access_token=$token&per_page=2000").asString
 
-    implicit val formats = DefaultFormats + new PayloadSerializer
+    implicit val formats = DefaultFormats + new GitHubEventSerializer
     val events = json.parse(response.body)
       .extract[List[GitHubEvent[Payload]]]
 

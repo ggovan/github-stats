@@ -37,7 +37,7 @@ object GithubStats {
     val commits = commitFilesWithPaths
       .flatMap {
         case (filename, contents) =>
-          implicit val formats = DefaultFormats + new PayloadSerializer
+          implicit val formats = DefaultFormats + new GitHubEventSerializer
           json.parse(contents)
             .extract[List[CommitResponse]]
       }
@@ -99,7 +99,7 @@ case class GithubStats(sc: SparkContext, pathToCommits: String, commitFiles: Lis
       .fold(sc.emptyRDD)(_ union _)
       .flatMap {
         case (filename, contents) =>
-          implicit val formats = DefaultFormats + new PayloadSerializer
+          implicit val formats = DefaultFormats + new GitHubEventSerializer
           println(filename)
           json.parse(contents)
             .extract[List[CommitResponse]]
