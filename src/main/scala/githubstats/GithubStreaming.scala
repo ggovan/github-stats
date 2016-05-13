@@ -18,7 +18,7 @@ object GithubStreaming {
      
       val sc = new SparkContext()
       val ssc = new StreamingContext(sc, Seconds(2))
-      val eventStream = ssc.receiverStream(new GitHubReceiver())
+      val eventStream = ssc.receiverStream(new GitHubReceiver[BasicEvent])
       
       val eventTypes = eventStream.map( event => event.`type`)
         .countByValue()

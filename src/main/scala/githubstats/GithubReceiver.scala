@@ -1,5 +1,5 @@
-
 package githubstats
+
 import org.apache.spark._
 import org.apache.spark.streaming._
 import org.apache.spark.streaming.StreamingContext._
@@ -7,11 +7,10 @@ import org.apache.spark.streaming.receiver.Receiver
 import org.apache.spark.storage.StorageLevel
 import scalaj.http.Http
 import scalaj.http.HttpResponse
-
 import net.liftweb.json
 import net.liftweb.json.DefaultFormats
 
-class GitHubReceiver() extends Receiver[BasicEvent](StorageLevel.MEMORY_AND_DISK_2) with Logging {
+class GitHubReceiver[T : Manifest]() extends Receiver[T](StorageLevel.MEMORY_AND_DISK_2) with Logging {
 
   def onStart() {
     // Start the thread that receives data over a connection
@@ -27,10 +26,10 @@ class GitHubReceiver() extends Receiver[BasicEvent](StorageLevel.MEMORY_AND_DISK
 
   /** Create a socket connection and receive data until receiver is stopped */
   private def receive() {
-    
+
     val token = sys.env("GITHUB_TOKEN")
     
-    while (!isStopped ) {
+    while (!isStopped) {
       Thread sleep 2000
       
       val response = Http("https://api.github.com/events?access_token=" + token + "&per_page=100").asString
@@ -43,9 +42,9 @@ class GitHubReceiver() extends Receiver[BasicEvent](StorageLevel.MEMORY_AND_DISK
         println(response.body)
       }
       
-      implicit val formats = DefaultFormats
+      implicit val formats = DefaultFormats + new GitHubEventSerializer
       val events =  json.parse(response.body)
-        .extract[List[BasicEvent]]
+        .extract[List[T]]
       
        
       events.foreach { store(_) } 

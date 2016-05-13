@@ -1,7 +1,6 @@
 package githubstats
 
 import scala.annotation.tailrec
-import scala.concurrent.duration.DurationInt
 
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.LocatedFileStatus
@@ -10,18 +9,12 @@ import org.apache.hadoop.fs.RemoteIterator
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 
-import akka.actor.ActorSystem
-import akka.actor.Props
-import akka.io.IO
-import akka.pattern.ask
-import akka.util.Timeout
 import net.liftweb.json
 import net.liftweb.json.DefaultFormats
-import spray.can.Http
 
 object GithubStats {
 
-    def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = {
     val pathToEvents = args(0);
     val pathToCommits = args(1);
 
@@ -32,15 +25,7 @@ object GithubStats {
 
     val ghs = GithubStats(sc, pathToCommits)
 
-    implicit val system = ActorSystem("on-spray-can")
-
-    // create and start our service actor
-    val service = system.actorOf(Props(new StatsServiceActor(ghs)), "demo-service")
-
-    implicit val timeout = Timeout(200.seconds)
-    // start a new HTTP server on port 8080 with our service actor as the handler
-    IO(Http) ? Http.Bind(service, interface = "0.0.0.0", port = 9021)
-
+    StatsService.start(ghs)
   }
   
   def apply(sc: SparkContext, pathToCommits: String): GithubStats = {
@@ -52,7 +37,7 @@ object GithubStats {
     val commits = commitFilesWithPaths
       .flatMap {
         case (filename, contents) =>
-          implicit val formats = DefaultFormats + new PayloadSerializer
+          implicit val formats = DefaultFormats + new GitHubEventSerializer
           json.parse(contents)
             .extract[List[CommitResponse]]
       }
@@ -114,7 +99,7 @@ case class GithubStats(sc: SparkContext, pathToCommits: String, commitFiles: Lis
       .fold(sc.emptyRDD)(_ union _)
       .flatMap {
         case (filename, contents) =>
-          implicit val formats = DefaultFormats + new PayloadSerializer
+          implicit val formats = DefaultFormats + new GitHubEventSerializer
           println(filename)
           json.parse(contents)
             .extract[List[CommitResponse]]
