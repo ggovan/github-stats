@@ -3,9 +3,13 @@ package githubstats
 import net.liftweb.json.CustomSerializer
 import net.liftweb.json.JsonAST._
 
-case class BasicEvent(id: String, `type`: String, actor: Actor, repo: Repo)
+trait HasId {
+  def id: String
+}
 
-case class GitHubEvent[+P <: Payload](id: String, `type`: String, actor: Actor, repo: Repo, payload: P, public: Boolean, created_at: String)
+case class BasicEvent(id: String, `type`: String, actor: Actor, repo: Repo) extends HasId
+
+case class GitHubEvent[+P <: Payload](id: String, `type`: String, actor: Actor, repo: Repo, payload: P, public: Boolean, created_at: String) extends HasId
 
 /**
  * Payload for a [[GitHubEvent]].
@@ -21,7 +25,8 @@ case class PullRequest(base: Base, commits: Option[Int], additions: Option[Int],
 case class Base(repo: RepoSummary)
 case class RepoSummary(language: String, name: String)
 
-case class PRSummaryModel(id:String, repo: String, language: String, commits: Option[Int], additions: Option[Int], deletions:Option[Int], changedFiles: Option[Int])
+case class PRSummaryModel(id:String, repo: String, language: String, commits: Option[Int], additions: Option[Int], deletions:Option[Int], changedFiles: Option[Int]) 
+extends HasId
 
 /**
  * JSON deserialiser for GitHubEvents.

@@ -1,6 +1,7 @@
 package githubstats
 
 import org.apache.spark.SparkContext
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark._
 import org.apache.spark.streaming._
@@ -11,19 +12,22 @@ import net.liftweb.json.JsonDSL._
 import net.liftweb.json.JObject
 import java.util.Calendar
 import redis.RedisClient
+import java.nio.file.{Files => nioFiles}
 
-object GithubStreaming {
+object EventStats {
   
    def main(args: Array[String]): Unit = {
      
       val sc = new SparkContext()
       val ssc = new StreamingContext(sc, Seconds(2))
+      ssc.checkpoint(nioFiles.createTempDirectory("spark-checkpoint").toString)
       val eventStream = ssc.receiverStream(new GitHubReceiver[BasicEvent])
       
-      val eventTypes = eventStream.map( event => event.`type`)
+      val newModels = IdUtil.filterDuplicates(eventStream)
+      
+      val eventTypes = newModels.map( event => event.`type`)
         .countByValue()
         .map( { case (eventType, count) => (eventType, count.toString) })
-      
       
       implicit val akkaSystem = akka.actor.ActorSystem()
       val redisClient = RedisClient(sys.env("REDIS_HOST"), sys.env("REDIS_PORT").toInt)
