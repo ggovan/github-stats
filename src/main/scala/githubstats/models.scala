@@ -17,8 +17,8 @@ case class JObjPayload(obj: JValue) extends Payload
 case class PushEventPayload(push_id: String, size: Int, commits: List[CommitSummary]) extends Payload
 case class PullRequestPayload(action: String, pull_request: PullRequest) extends Payload
 
-case class PullRequest(head: Head, commits: Option[Int], additions: Option[Int], deletions: Option[Int], changed_files: Option[Int])
-case class Head(repo: RepoSummary)
+case class PullRequest(base: Base, commits: Option[Int], additions: Option[Int], deletions: Option[Int], changed_files: Option[Int])
+case class Base(repo: RepoSummary)
 case class RepoSummary(language: String, name: String)
 
 case class PRSummaryModel(id:String, repo: String, language: String, commits: Option[Int], additions: Option[Int], deletions:Option[Int], changedFiles: Option[Int])
