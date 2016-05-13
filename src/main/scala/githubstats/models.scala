@@ -1,9 +1,7 @@
 package githubstats
 
 import net.liftweb.json.CustomSerializer
-import net.liftweb.json.JsonAST.JField
-import net.liftweb.json.JsonAST.JObject
-
+import net.liftweb.json.JsonAST._
 
 case class BasicEvent(id: String, `type`: String, actor: Actor, repo: Repo)
 
@@ -12,27 +10,35 @@ case class GitHubEvent[+P <: Payload](id: String, `type`: String, actor: Actor, 
 /**
  * Payload for a [[GitHubEvent]].
  * Different Payloads are used for different event types.
- * [[PushEventPayload]] is the currently the only one in use. 
+ * [[PushEventPayload]] and [[PullRequestPayload]] are currently the only ones in use. 
  */
 sealed trait Payload
-case class JObjPayload(obj: JObject) extends Payload
+case class JObjPayload(obj: JValue) extends Payload
 case class PushEventPayload(push_id: String, size: Int, commits: List[CommitSummary]) extends Payload
+case class PullRequestPayload(action: String, pull_request: PullRequest) extends Payload
+
+case class PullRequest(base: Base, commits: Option[Int], additions: Option[Int], deletions: Option[Int], changed_files: Option[Int])
+case class Base(repo: RepoSummary)
+case class RepoSummary(language: String, name: String)
+
+case class PRSummaryModel(id:String, repo: String, language: String, commits: Option[Int], additions: Option[Int], deletions:Option[Int], changedFiles: Option[Int])
 
 /**
- * JSON deserialiser for Payloads.
+ * JSON deserialiser for GitHubEvents.
  * Deserilaises payloads into the correct [[Payload]] type for their contents.
- * Currently only the [[PushEventPayLoad]] is deserialised.
- * It is not serialised.
+ * [[PushEventPayload]] and [[PullRequestPayload]] are currently the only ones in use.
+ * They are not serialised.
  */
-class PayloadSerializer extends CustomSerializer[Payload](implicit format => (
-    {case o: JObject => 
-      JObjPayload(o)
-      o.obj.collectFirst[Payload]{case JField("push_id", _) => 
-        o.extract[PushEventPayload]
+class GitHubEventSerializer extends CustomSerializer[GitHubEvent[_]](implicit format => (
+    {case o: JObject =>
+      val payload = o\"type" match {
+        case JString("PushEvent") => (o\"payload").extract[PushEventPayload]
+        case JString("PullRequestEvent") => (o\"payload").extract[PullRequestPayload]
+        case _ => JObjPayload(o\"payload")
       }
-        .getOrElse(JObjPayload(o))
+      GitHubEvent((o\"id").extract[String],(o\"type").extract[String],(o\"actor").extract[Actor],(o\"repo").extract[Repo],payload,(o\"public").extract[Boolean],(o\"created_at").extract[String])
     },
-    {case p: Payload => ???}
+    {case p: GitHubEvent[_] => ???}
 ))
 
 case class CommitSummary(sha: String, url: String, message: String, author: Author, distinct: Boolean)
