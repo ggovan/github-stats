@@ -24,8 +24,10 @@ object GithubStreaming {
         .countByValue()
         .map( { case (eventType, count) => (eventType, count.toString) })
       
-      eventTypes.print()
       
+      implicit val akkaSystem = akka.actor.ActorSystem()
+      val redisClient = RedisClient(sys.env("REDIS_HOST"), sys.env("REDIS_PORT").toInt)
+        
       eventTypes.foreachRDD { rdd => {
               
         val emptyObject: JObject = JObject(List())
@@ -40,8 +42,6 @@ object GithubStreaming {
           val timestamp = ("timestamp", now)
           val eventsJson = json.compact(json.render(eventCounts ~ timestamp))
          
-          implicit val akkaSystem = akka.actor.ActorSystem()
-          val redisClient = RedisClient(sys.env("REDIS_HOST"), sys.env("REDIS_PORT").toInt)
           redisClient.publish("spark-stream", eventsJson)
         }
         
