@@ -8,7 +8,6 @@ import org.apache.spark.storage.StorageLevel
 import scalaj.http.Http
 import scalaj.http.HttpResponse
 import net.liftweb.json
-import net.liftweb.json.DefaultFormats
 
 class GitHubReceiver[T : Manifest]() extends Receiver[T](StorageLevel.MEMORY_AND_DISK_2) with Logging {
 
@@ -42,7 +41,7 @@ class GitHubReceiver[T : Manifest]() extends Receiver[T](StorageLevel.MEMORY_AND
         println(response.body)
       }
       
-      implicit val formats = DefaultFormats + new GitHubEventSerializer
+      implicit val formats = GitHubFormats.format
       val events =  json.parse(response.body)
         .extract[List[T]]
       

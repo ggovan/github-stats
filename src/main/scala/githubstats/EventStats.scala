@@ -21,7 +21,7 @@ object EventStats {
       val sc = new SparkContext()
       val ssc = new StreamingContext(sc, Seconds(2))
       ssc.checkpoint(nioFiles.createTempDirectory("spark-checkpoint").toString)
-      val eventStream = ssc.receiverStream(new GitHubReceiver[BasicEvent])
+      val eventStream = ssc.receiverStream(new GitHubReceiver[GitHubEvent[Payload]])
       
       val newModels = IdUtil.filterDuplicates(eventStream)
       
@@ -44,7 +44,7 @@ object EventStats {
           val now = Calendar.getInstance().getTimeInMillis().toString()
           
           val timestamp = ("timestamp", now)
-          val eventsJson = json.compact(json.render(eventCounts ~ timestamp))
+          val eventsJson   = json.compact(json.render(eventCounts ~ timestamp))
          
           redisClient.publish("spark-stream", eventsJson)
         }
