@@ -12,6 +12,7 @@ import scala.collection.JavaConverters._
 class WebSocketServer(port: Int) extends org.java_websocket.server.WebSocketServer(new InetSocketAddress(port)) {
   
   override def onOpen(conn: WebSocket, handshake: ClientHandshake) {
+    println(s"Connection - $conn");
   }
   
   override def onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {

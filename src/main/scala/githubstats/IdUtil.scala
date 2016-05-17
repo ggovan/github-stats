@@ -33,6 +33,6 @@ object IdUtil {
   private[githubstats] def getMaxAndPrev(ids: Seq[Long], state: Option[(Option[Long], Option[Long])]): Option[(Option[Long], Option[Long])] = 
     Some((
       Try(ids.max).toOption
-        .fold(state.fold[Option[Long]](None)(_._1))(Some(_)),
-      state.fold[Option[Long]](None)(_._1)))
+        .fold(state.flatMap(_._1))(Some(_)),
+      state.flatMap(_._1)))
 }

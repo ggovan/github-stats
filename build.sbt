@@ -18,6 +18,8 @@ libraryDependencies += "net.liftweb" %% "lift-json" % "2.6.3"
 libraryDependencies += "redis.clients" % "jedis" % "2.8.0"
 libraryDependencies += "com.github.etaty" %% "rediscala" % "1.6.0"
 
+libraryDependencies += "joda-time" % "joda-time" % "2.9.3"
+
 libraryDependencies ++= {
   val akkaV = "2.3.9"
   val sprayV = "1.3.3"

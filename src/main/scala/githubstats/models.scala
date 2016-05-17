@@ -2,6 +2,10 @@ package githubstats
 
 import net.liftweb.json.CustomSerializer
 import net.liftweb.json.JsonAST._
+import net.liftweb.json.DefaultFormats
+import org.joda.time.DateTime
+import org.joda.time.format.DateTimeFormatter
+import org.joda.time.format.DateTimeFormat
 
 trait HasId {
   def id: String
@@ -21,11 +25,15 @@ case class JObjPayload(obj: JValue) extends Payload
 case class PushEventPayload(push_id: String, size: Int, commits: List[CommitSummary]) extends Payload
 case class PullRequestPayload(action: String, pull_request: PullRequest) extends Payload
 
-case class PullRequest(base: Base, commits: Option[Int], additions: Option[Int], deletions: Option[Int], changed_files: Option[Int])
+case class PullRequest(base: Base, commits: Option[Int], additions: Option[Int], 
+    deletions: Option[Int], changed_files: Option[Int], created_at: DateTime,
+    closed_at: Option[DateTime])
 case class Base(repo: RepoSummary)
 case class RepoSummary(language: String, name: String)
 
-case class PRSummaryModel(id:String, repo: String, language: String, commits: Option[Int], additions: Option[Int], deletions:Option[Int], changedFiles: Option[Int]) 
+case class PRSummaryModel(id:String, repo: String, language: String,
+    commits: Option[Int], additions: Option[Int], deletions:Option[Int],
+    changedFiles: Option[Int], createdAt: DateTime, closedAt: Option[DateTime]) 
 extends HasId
 
 /**
@@ -34,7 +42,7 @@ extends HasId
  * [[PushEventPayload]] and [[PullRequestPayload]] are currently the only ones in use.
  * They are not serialised.
  */
-class GitHubEventSerializer extends CustomSerializer[GitHubEvent[_]](implicit format => (
+object GitHubEventSerializer extends CustomSerializer[GitHubEvent[_]](implicit format => (
     {case o: JObject =>
       val payload = o\"type" match {
         case JString("PushEvent") => (o\"payload").extract[PushEventPayload]
@@ -45,6 +53,23 @@ class GitHubEventSerializer extends CustomSerializer[GitHubEvent[_]](implicit fo
     },
     {case p: GitHubEvent[_] => ???}
 ))
+
+object DateTimeSerializer extends CustomSerializer[DateTime](format =>{
+  val jodaFormatter = DateTimeFormat.forPattern("YYYY-MM-dd'T'HH:mm:ss'Z'")
+  ({
+    case JString(s) => jodaFormatter.parseDateTime(s)
+    case JNull      => null
+  },
+  {
+    case d: DateTime => JString(jodaFormatter.print(d))
+  }
+)})
+
+object GitHubFormats {
+  implicit val format = DefaultFormats + 
+    GitHubEventSerializer +
+    DateTimeSerializer
+}
 
 case class CommitSummary(sha: String, url: String, message: String, author: Author, distinct: Boolean)
 

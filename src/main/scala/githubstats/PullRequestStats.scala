@@ -44,13 +44,15 @@ object PullRequestStats {
         event.payload.pull_request.commits,
         event.payload.pull_request.additions,
         event.payload.pull_request.deletions,
-        event.payload.pull_request.changed_files)
+        event.payload.pull_request.changed_files,
+        event.payload.pull_request.created_at,
+        event.payload.pull_request.closed_at)
     }
   
     val newModels = IdUtil.filterDuplicates(models)
 
     newModels.map { pr =>
-      implicit val formats = DefaultFormats + new GitHubEventSerializer
+      implicit val formats = GitHubFormats.format
       json.Serialization.write(pr)
     }
       .foreachRDD(rdd =>
